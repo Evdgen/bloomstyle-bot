@@ -1,73 +1,116 @@
 import asyncio
 import logging
 import os
-from aiogram import Bot, Dispatcher
-from aiohttp import web
 
-from config import BOT_TOKEN
-from handlers import (
-    start_router,
-    bloom_router,
-    style_router,
-    knowledge_router,
-    settings_router,
-    premium_router,
-    payments_router,
-    crypto_router,
-    horoscope_router,
-    mystery_box_router,
-    habit_tracker_router,
-    prank_router
-)
+from aiogram import Bot, Dispatcher, F
+from aiogram.enums import ParseMode
+from aiogram.filters import Command, CommandStart
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from dotenv import load_dotenv
 
+# Загружаем переменные окружения (BOT_TOKEN из Bothost)
+load_dotenv()
+
+# Включаем логи (полезно для отладки на хостинге)
 logging.basicConfig(level=logging.INFO)
 
-bot = Bot(token=BOT_TOKEN)
+# Берём токен из переменных окружения
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+# Проверка: если токена нет — бот не запустится
+if not BOT_TOKEN:
+    raise ValueError("❌ BOT_TOKEN не найден в переменных окружения!")
+
+# Создаём бота и диспетчера
+bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.HTML)
 dp = Dispatcher()
 
-# Подключаем все роутеры
-dp.include_router(start_router)
-dp.include_router(bloom_router)
-dp.include_router(style_router)
-dp.include_router(knowledge_router)
-dp.include_router(settings_router)
-dp.include_router(premium_router)
-dp.include_router(payments_router)
-dp.include_router(crypto_router)
-dp.include_router(horoscope_router)
-dp.include_router(mystery_box_router)
-dp.include_router(habit_tracker_router)
-dp.include_router(prank_router)
+# --- Клавиатура главного меню ---
+def get_main_keyboard():
+    buttons = [
+        [KeyboardButton(text="🌸 Подобрать образ")],
+        [KeyboardButton(text="👗 Мои сохранения")],
+        [KeyboardButton(text="📞 Связаться со стилистом")],
+        [KeyboardButton(text="❓ Помощь")]
+    ]
+    return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
 
-# ==================== ЗАГЛУШКА ДЛЯ RENDER ====================
-async def handle_health(request):
-    """Простой эндпоинт для проверки здоровья"""
-    return web.Response(text="Бот работает!")
+# --- Команда /start ---
+@dp.message(CommandStart())
+async def start_command(message: Message):
+    await message.answer(
+        "🌸 *BloomStyle* — твой персональный стилист в Telegram!\n\n"
+        "Я помогу тебе:\n"
+        "✨ Подобрать образ под твой тип внешности\n"
+        "👗 Найти одежду, которая тебе идёт\n"
+        "🎨 Определить цветотип и форму лица\n\n"
+        "👇 Выбери действие в меню ниже",
+        reply_markup=get_main_keyboard(),
+        parse_mode="Markdown"
+    )
 
-async def run_web_server():
-    """Запуск простого веб-сервера для Render"""
-    app = web.Application()
-    app.router.add_get('/', handle_health)
-    app.router.add_get('/health', handle_health)
-    
-    port = int(os.environ.get('PORT', 10000))
-    print(f"🌐 Заглушка веб-сервера запущена на порту {port}")
-    
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', port)
-    await site.start()
-    print(f"✅ Заглушка порта {port} активна (бот работает в фоне)")
+# --- Команда /help ---
+@dp.message(Command("help"))
+async def help_command(message: Message):
+    await message.answer(
+        "❓ *Помощь по командам*\n\n"
+        "/start — начать работу\n"
+        "/help — это сообщение\n"
+        "/survey — начать подбор стиля\n\n"
+        "Также ты можешь пользоваться кнопками меню.",
+        parse_mode="Markdown"
+    )
 
+# --- Кнопка "Подобрать образ" ---
+@dp.message(F.text == "🌸 Подобрать образ")
+async def choose_style(message: Message):
+    await message.answer(
+        "🎨 *Давай подберем твой идеальный образ!*\n\n"
+        "Скоро здесь появится опросник по:\n"
+        "• Цветотипу\n"
+        "• Форме лица\n"
+        "• Предпочтениям в одежде\n\n"
+        "А пока — можешь написать /survey",
+        parse_mode="Markdown"
+    )
+
+# --- Кнопка "Мои сохранения" ---
+@dp.message(F.text == "👗 Мои сохранения")
+async def my_saves(message: Message):
+    await message.answer(
+        "📦 *Мои сохранения*\n\n"
+        "Здесь будут храниться твои любимые образы.\n"
+        "Пока что тут пусто — сохрани первый образ!",
+        parse_mode="Markdown"
+    )
+
+# --- Кнопка "Связаться со стилистом" ---
+@dp.message(F.text == "📞 Связаться со стилистом")
+async def contact_stylist(message: Message):
+    await message.answer(
+        "📞 *Связь со стилистом*\n\n"
+        "Напиши нам: @evd_gen\n"
+        "Или отправь сообщение прямо сюда — я передам!",
+        parse_mode="Markdown"
+    )
+
+# --- Кнопка "Помощь" ---
+@dp.message(F.text == "❓ Помощь")
+async def help_button(message: Message):
+    await help_command(message)
+
+# --- Заглушка на любое другое сообщение ---
+@dp.message()
+async def echo(message: Message):
+    await message.answer(
+        "Я тебя не совсем понял 😅\n"
+        "Используй кнопки меню или команду /help"
+    )
+
+# --- Запуск бота ---
 async def main():
-    """Запуск бота и веб-сервера"""
     print("🚀 Бот BloomStyle запускается...")
-    
-    # Запускаем веб-сервер (заглушку) параллельно с ботом
-    asyncio.create_task(run_web_server())
-    
-    # Запускаем бота
-    print("🤖 Бот начинает polling...")
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
