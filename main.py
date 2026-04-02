@@ -61,6 +61,19 @@ async def help_command(message: Message):
         parse_mode="Markdown"
     )
 
+# --- Команда /survey (заглушка) ---
+@dp.message(Command("survey"))
+async def survey_command(message: Message):
+    await message.answer(
+        "🎨 *Скоро здесь будет опросник!*\n\n"
+        "Я буду задавать вопросы о:\n"
+        "• Твоём цветотипе\n"
+        "• Форме лица\n"
+        "• Любимых стилях одежды\n\n"
+        "А пока — пользуйся кнопками меню!",
+        parse_mode="Markdown"
+    )
+
 # --- Кнопка "Подобрать образ" ---
 @dp.message(F.text == "🌸 Подобрать образ")
 async def choose_style(message: Message):
